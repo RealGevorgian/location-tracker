@@ -1,5 +1,6 @@
 package com.example.locationtracker.producer;
 
+import com.example.locationtracker.model.Location;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.slf4j.Logger;
@@ -27,9 +28,9 @@ public class LocationProducer {
                 double latitude = -90 + (90 - (-90)) * random.nextDouble();
                 double longitude = -180 + (180 - (-180)) * random.nextDouble();
 
-                String value = latitude + "," + longitude;
-                producer.send(new ProducerRecord<>("location-topic", value));
-                logger.info("Sent: {}", value);
+                Location location = new Location(latitude, longitude);
+                producer.send(new ProducerRecord<>("location-topic", location.toString()));
+                logger.info("Sent: {}", location);
 
                 Thread.sleep(1000); // Pause for 1 second
             }

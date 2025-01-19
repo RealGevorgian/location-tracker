@@ -1,5 +1,6 @@
 package com.example.locationtracker.consumer;
 
+import com.example.locationtracker.model.Location;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -24,23 +25,23 @@ public class LocationConsumer {
         KafkaConsumer<String, String> consumer = new KafkaConsumer<>(props);
         consumer.subscribe(List.of("location-topic"));
 
-        List<double[]> coordinates = new ArrayList<>();
+        List<Location> locations = new ArrayList<>();
 
         try {
             while (true) {
                 ConsumerRecords<String, String> records = consumer.poll(100);
                 for (ConsumerRecord<String, String> record : records) {
                     logger.info("Received: {}", record.value());
-                    String[] parts = record.value().split(",");
-                    double latitude = Double.parseDouble(parts[0]);
-                    double longitude = Double.parseDouble(parts[1]);
 
-                    if (!coordinates.isEmpty()) {
-                        double[] last = coordinates.get(coordinates.size() - 1);
-                        totalDistance += haversine(last[0], last[1], latitude, longitude);
+                    Location location = parseLocation(record.value());
+                    if (location == null) continue;
+
+                    if (!locations.isEmpty()) {
+                        Location lastLocation = locations.get(locations.size() - 1);
+                        totalDistance += haversine(lastLocation, location);
                     }
 
-                    coordinates.add(new double[]{latitude, longitude});
+                    locations.add(location);
                     logger.info("Total Distance: {} km", totalDistance);
                 }
             }
@@ -51,13 +52,25 @@ public class LocationConsumer {
         }
     }
 
-    private static double haversine(double lat1, double lon1, double lat2, double lon2) {
+    private static Location parseLocation(String value) {
+        try {
+            String[] parts = value.replace("Location{", "").replace("}", "").split(", ");
+            double latitude = Double.parseDouble(parts[0].split("=")[1]);
+            double longitude = Double.parseDouble(parts[1].split("=")[1]);
+            return new Location(latitude, longitude);
+        } catch (Exception e) {
+            logger.error("Failed to parse location: {}", value, e);
+            return null;
+        }
+    }
+
+    private static double haversine(Location loc1, Location loc2) {
         final int R = 6371; // Radius of Earth in kilometers
-        double dLat = Math.toRadians(lat2 - lat1);
-        double dLon = Math.toRadians(lon2 - lon1);
+        double dLat = Math.toRadians(loc2.getLatitude() - loc1.getLatitude());
+        double dLon = Math.toRadians(loc2.getLongitude() - loc1.getLongitude());
 
         double a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
+                Math.cos(Math.toRadians(loc1.getLatitude())) * Math.cos(Math.toRadians(loc2.getLatitude())) *
                         Math.sin(dLon / 2) * Math.sin(dLon / 2);
 
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));

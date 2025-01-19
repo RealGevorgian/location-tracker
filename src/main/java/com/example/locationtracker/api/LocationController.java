@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class LocationController {
 
-    private double totalDistance = 0; // Placeholder for dynamic total distance
+    private double totalDistance = 0;
 
     @GetMapping("/distance")
     public String getTotalDistance() {
